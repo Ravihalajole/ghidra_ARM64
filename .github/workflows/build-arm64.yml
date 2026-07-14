@@ -40,7 +40,7 @@ jobs:
       - name: Set up Java Development Kit
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: 'zulu'
           java-version: '${{ env.JDK_VER }}'
 
       - name: Setup Gradle
