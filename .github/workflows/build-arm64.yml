@@ -63,12 +63,19 @@ jobs:
 
       - name: Build Ghidra Distribution Package
         env:
-          CC: ${{ matrix.platform_name == 'linux_arm_64' && 'aarch64-linux-gnu-gcc' || '' }}
-          CXX: ${{ matrix.platform_name == 'linux_arm_64' && 'aarch64-linux-gnu-g++' || '' }}
           PROTOC_ARCH: ${{ matrix.os == 'ubuntu-latest' && '-PprotocPlatform=linux-x86_64' || '' }}
         shell: bash
         run: |
-          ./gradlew buildGhidra -PcurrentPlatformName=${{ matrix.platform_name }} $PROTOC_ARCH --no-daemon
+          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+            # Map the cross-compiler to the default 'gcc'/'g++' names Gradle's C++ plugin looks for
+            mkdir -p /tmp/cross-compiler
+            ln -s $(which aarch64-linux-gnu-gcc) /tmp/cross-compiler/gcc
+            ln -s $(which aarch64-linux-gnu-g++) /tmp/cross-compiler/g++
+            export PATH="/tmp/cross-compiler:$PATH"
+          fi
+          
+          # Pass -Dos.arch=aarch64 to trick Gradle into natively compiling the *_arm_64 binaries
+          ./gradlew buildGhidra -PcurrentPlatformName=${{ matrix.platform_name }} $PROTOC_ARCH -Dos.arch=aarch64 --no-daemon
 
       - name: Locate and Upload Distribution Zip
         uses: actions/upload-artifact@v4
