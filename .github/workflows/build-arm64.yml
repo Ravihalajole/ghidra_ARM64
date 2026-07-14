@@ -17,11 +17,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04-arm
             platform_name: linux_arm_64
           - os: macos-14
             platform_name: mac_arm_64
-          - os: windows-latest
+          - os: windows-11-arm
             platform_name: win_arm_64
 
     steps:
@@ -43,12 +43,6 @@ jobs:
           distribution: 'temurin'
           java-version: '${{ env.JDK_VER }}'
 
-      - name: Install Native Toolchain Dependencies (Linux Cross-Compilation)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu qemu-user-static binfmt-support
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -56,26 +50,13 @@ jobs:
 
       - name: Fetch Dependencies
         shell: bash
-        env:
-          PROTOC_ARCH: ${{ matrix.os == 'ubuntu-latest' && '-PprotocPlatform=linux-x86_64' || '' }}
         run: |
-          ./gradlew -I gradle/support/fetchDependencies.gradle -DhideDownloadProgress -DnoEclipse $PROTOC_ARCH
+          ./gradlew -I gradle/support/fetchDependencies.gradle -DhideDownloadProgress -DnoEclipse
 
       - name: Build Ghidra Distribution Package
-        env:
-          PROTOC_ARCH: ${{ matrix.os == 'ubuntu-latest' && '-PprotocPlatform=linux-x86_64' || '' }}
         shell: bash
         run: |
-          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-            # Map the cross-compiler to the default 'gcc'/'g++' names Gradle's C++ plugin looks for
-            mkdir -p /tmp/cross-compiler
-            ln -s $(which aarch64-linux-gnu-gcc) /tmp/cross-compiler/gcc
-            ln -s $(which aarch64-linux-gnu-g++) /tmp/cross-compiler/g++
-            export PATH="/tmp/cross-compiler:$PATH"
-          fi
-          
-          # Pass -Dos.arch=aarch64 to trick Gradle into natively compiling the *_arm_64 binaries
-          ./gradlew buildGhidra -PcurrentPlatformName=${{ matrix.platform_name }} $PROTOC_ARCH -Dos.arch=aarch64 --no-daemon
+          ./gradlew buildGhidra -PcurrentPlatformName=${{ matrix.platform_name }} --no-daemon
 
       - name: Locate and Upload Distribution Zip
         uses: actions/upload-artifact@v4
@@ -84,10 +65,23 @@ jobs:
           path: "**/build/dist/*.zip"
           if-no-files-found: error
 
+  publish-release:
+    needs: build-arm64
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          pattern: ghidra-distribution-*
+          merge-multiple: true
+
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "latest"
           name: "Latest Automated Build"
-          files: "**/build/dist/*.zip"
+          files: "release-artifacts/*.zip"
           generate_release_notes: true
