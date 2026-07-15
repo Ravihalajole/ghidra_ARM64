@@ -58,6 +58,13 @@ jobs:
         run: |
           ./gradlew buildGhidra -PcurrentPlatformName=${{ matrix.platform_name }} --no-daemon
 
+      - name: Rename Distribution Zip for Platform
+        shell: bash
+        run: |
+          find . -type f -path "*/build/dist/*.zip" | while read filepath; do
+            mv "$filepath" "${filepath%.zip}-${{ matrix.platform_name }}.zip"
+          done
+
       - name: Locate and Upload Distribution Zip
         uses: actions/upload-artifact@v4
         with:
@@ -78,10 +85,15 @@ jobs:
           pattern: ghidra-distribution-*
           merge-multiple: true
 
+      - name: Delete old release to refresh timestamp and changelog
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release delete latest --cleanup-tag -y || true
+
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "latest"
           name: "Latest Automated Build"
+          body: "Automated continuous build of Ghidra ARM64 variants for Windows, macOS, and Linux."
           files: "release-artifacts/*.zip"
-          generate_release_notes: true
