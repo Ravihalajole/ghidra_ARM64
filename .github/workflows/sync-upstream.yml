@@ -6,11 +6,10 @@ on:
   workflow_dispatch: # Allows manual trigger from the Actions tab
 
 jobs:
-  sync-and-trigger:
+  sync-upstream:
     runs-on: ubuntu-latest
     permissions:
       contents: write # Required to sync the branch
-      actions: write  # Required to explicitly trigger the build workflow
     steps:
       - name: Sync Fork
         env:
@@ -18,10 +17,3 @@ jobs:
         run: |
           echo "Syncing repository with official upstream..."
           gh repo sync ${{ github.repository }} --branch main --source NationalSecurityAgency/ghidra
-          
-      - name: Trigger ARM64 Build
-        env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
-        run: |
-          echo "Explicitly triggering the build workflow..."
-          gh workflow run build-arm64.yml --ref main
