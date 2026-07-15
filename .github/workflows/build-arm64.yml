@@ -51,7 +51,7 @@ jobs:
       - name: Fetch Dependencies
         shell: bash
         run: |
-          ./gradlew -I gradle/support/fetchDependencies.gradle -DhideDownloadProgress -DnoEclipse --no-daemon
+          ./gradlew -I gradle/support/fetchDependencies.gradle -DhideDownloadProgress -DnoEclipse --no-daemon --max-workers=1 --no-parallel
 
       - name: Build Ghidra Distribution Package
         shell: bash
